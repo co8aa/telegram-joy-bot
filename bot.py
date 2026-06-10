@@ -103,7 +103,7 @@ telegram_app.add_handler(CommandHandler("list", list_count))
 # ── Бот запускается в отдельном потоке БЕЗ signal handlers ──
 async def run_bot_async():
     await telegram_app.initialize()
-    await telegram_app.updater.start_polling()
+    await telegram_app.updater.start_polling(drop_pending_updates=True)
     await telegram_app.start()
     print(f"Бот запущен, радостей: {len(JOYS)}")
     await asyncio.Event().wait()  # держим живым навсегда
