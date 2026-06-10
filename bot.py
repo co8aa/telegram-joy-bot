@@ -83,10 +83,14 @@ JOYS = [
 telegram_app = Application.builder().token(TOKEN).build()
  
 async def start(update: Update, context):
-    await update.message.reply_text("Привет! Отправь /random для радости или /list для количества.")
+    await update.message.reply_text("🌸 Привет! Я — твой бот-рандомайзер радостей.
+
+Отправь /random — и я выберу для тебя одно радостное действие.
+Отправь /list — чтобы увидеть, сколько радостей в списке.")
  
 async def random_joy(update: Update, context):
-    await update.message.reply_text(f"✨ {random.choice(JOYS)}")
+    joy = random.choice(JOYS)
+    await update.message.reply_text(f"🎲 Твоя радость сегодня:\n\n✨ {joy}")
  
 async def list_count(update: Update, context):
     await update.message.reply_text(f"📋 В списке {len(JOYS)} радостей.")
