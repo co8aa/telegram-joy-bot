@@ -1,8 +1,6 @@
 import os
 import random
 import logging
-import threading
-from flask import Flask
 from telegram import Update
 from telegram.ext import Application, CommandHandler
 
@@ -67,19 +65,17 @@ JOYS = [
     "Составить капсулу из вещей которые хотелось бы купить",
     "Набрать в поиске «cozy corners» (уютные углы) — посмотреть 5 минут без цели.",
     "Найти иллюстрацию к любимой детской книге (вспомнить, как она выглядела).",
-    "Научиться играть в шахматы (сделать первый ход в онлайн-партии или решить одну задачу на мат в 1 ход).",
-    "Сделать одно упражнение на осанку (например, «лодочка» или планка на 10 секунд).",
-    "Написать одно предложение для своей книги (даже если потом удалишь).",
-    "Повторить один старый немецкий урок (Duolingo или любой другой).",
-    "Нарисовать один небольшой натюрморт (чашку, яблоко, книгу).",
+    "Научиться играть в шахматы.",
+    "Сделать одно упражнение на осанку.",
+    "Написать одно предложение для своей книги.",
+    "Повторить один старый немецкий урок.",
+    "Нарисовать один небольшой натюрморт.",
     "Сложить из бумаги простой кораблик.",
-    "Поздравить мысленно себя с тем, что ты запустила этого бота.",
-    "Найти новый рецепт и прочитать его (как сказку).",
-    "Сделать три глубоких вдоха и выдоха, положив руку на сердце.",
-    "Написать себе письмо из будущего (одно предложение).",
+    "Поздравить мысленно себя.",
+    "Найти новый рецепт и прочитать его.",
+    "Сделать три глубоких вдоха.",
+    "Написать себе письмо из будущего.",
 ]
-
-application = Application.builder().token(TOKEN).build()
 
 async def start(update: Update, context):
     await update.message.reply_text(
@@ -95,29 +91,13 @@ async def random_joy(update: Update, context):
 async def list_count(update: Update, context):
     await update.message.reply_text(f"📋 В твоём списке сейчас {len(JOYS)} радостей.")
 
-application.add_handler(CommandHandler("start", start))
-application.add_handler(CommandHandler("random", random_joy))
-application.add_handler(CommandHandler("list", list_count))
-
-def run_bot():
-    print(f"🤖 Бот запущен! {len(JOYS)} радостей.")
-    application.run_polling()
-
-flask_app = Flask(__name__)
-
-@flask_app.route("/")
-def index():
-    return "🤖 Бот работает!"
-
-@flask_app.route("/health")
-def health():
-    return "OK", 200
+def main():
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("random", random_joy))
+    app.add_handler(CommandHandler("list", list_count))
+    print(f"🤖 Бот запущен! В списке {len(JOYS)} радостей.")
+    app.run_polling()
 
 if __name__ == "__main__":
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.daemon = True
-    bot_thread.start()
-    
-    port = int(os.environ.get("PORT", 5000))
-    print(f"🚀 Сервер на порту {port}")
-    flask_app.run(host="0.0.0.0", port=port)
+    main()
