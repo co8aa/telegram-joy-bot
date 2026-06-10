@@ -1,19 +1,20 @@
 import os
 import random
 import logging
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from flask import Flask, request
+from telegram import Bot, Update
+from telegram.ext import Dispatcher, CommandHandler
 
-# Токен берем из переменных окружения Render (БЕЗОПАСНО)
+# Токен из переменных окружения Render
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
-
 if not TOKEN:
     raise ValueError("TELEGRAM_TOKEN не найден! Добавь переменную окружения в Render.")
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
+logging.basicConfig(level=logging.INFO)
 
+# ==================================================
+# ТВОЙ ПОЛНЫЙ СПИСОК РАДОСТЕЙ (60 пунктов)
+# ==================================================
 JOYS = [
     "Разобрать ящик хаоса (любой один).",
     "Помыть одну раковину до идеала.",
@@ -45,7 +46,6 @@ JOYS = [
     "Сделать гармошку из полоски бумаги (сложить туда-сюда).",
     "Сделать цепочку из бумажных колечек (склеить или скрепить степлером).",
     "Слепить что-то из полимерной глины",
-    "Научиться играть в шахматы",
     "Сделать «березку» у стены (ноги вверх, плечи на полу) — 10 секунд.",
     "Упереться руками в стену и давить 10 секунд.",
     "Съесть один маленький кусочек шоколада (если есть) — очень медленно, не жуя сразу.",
@@ -70,30 +70,67 @@ JOYS = [
     "Составить капсулу из вещей которые хотелось бы купить",
     "Набрать в поиске «cozy corners» (уютные углы) — посмотреть 5 минут без цели.",
     "Найти иллюстрацию к любимой детской книге (вспомнить, как она выглядела).",
+    # НОВЫЕ РАДОСТИ
+    "Научиться играть в шахматы (сделать первый ход в онлайн-партии или решить одну задачу на мат в 1 ход).",
+    "Сделать одно упражнение на осанку (например, «лодочка» или планка на 10 секунд).",
+    "Написать одно предложение для своей книги (даже если потом удалишь).",
+    "Повторить один старый немецкий урок (Duolingo или любой другой).",
+    "Нарисовать один небольшой натюрморт (чашку, яблоко, книгу).",
+    "Сложить из бумаги простой кораблик.",
+    "Вспомнить любимую хореографию."
 ]
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
+# ==================================================
+# СОЗДАЁМ ВЕБ-СЕРВЕР (Flask)
+# ==================================================
+app = Flask(__name__)
+bot = Bot(token=TOKEN)
+dispatcher = Dispatcher(bot, None, use_context=True)
+
+# Обработчики команд
+def start(update, context):
+    update.message.reply_text(
         "🌸 Привет! Я — твой бот-рандомайзер радостей.\n\n"
         "Отправь /random — и я выберу для тебя одно радостное действие.\n"
-        "Отправь /list — чтобы увидеть, сколько радостей в списке."
+        "Отправь /list — чтобы увидеть, сколько радостей в списке.\n\n"
+        "Ты справишься. Просто начни с одного пункта."
     )
 
-async def random_joy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def random_joy(update, context):
     joy = random.choice(JOYS)
-    await update.message.reply_text(f"🎲 Твоя радость сегодня:\n\n✨ {joy}")
+    update.message.reply_text(
+        f"🎲 Твоя радость сегодня:\n\n✨ {joy}\n\n"
+        "Попробуй прямо сейчас. Ты этого заслуживаешь."
+    )
 
-async def list_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"📋 В твоём списке сейчас {len(JOYS)} радостей.")
+def list_count(update, context):
+    update.message.reply_text(
+        f"📋 В твоём списке сейчас {len(JOYS)} радостей.\n\n"
+        "Чтобы получить одну — напиши /random"
+    )
 
-def main():
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("random", random_joy))
-    app.add_handler(CommandHandler("list", list_count))
-    
-    print("Бот запущен!")
-    app.run_polling()
+# Регистрируем команды
+dispatcher.add_handler(CommandHandler("start", start))
+dispatcher.add_handler(CommandHandler("random", random_joy))
+dispatcher.add_handler(CommandHandler("list", list_count))
 
+# Эндпоинт для Telegram (вебхук)
+@app.route(f"/{TOKEN}", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(), bot)
+    dispatcher.process_update(update)
+    return "ok", 200
+
+# Проверочный эндпоинт
+@app.route("/")
+def index():
+    return "🤖 Бот для радостей работает! Используй /start в Telegram."
+
+# ==================================================
+# ЗАПУСК
+# ==================================================
 if __name__ == "__main__":
-    main()
+    port = int(os.environ.get("PORT", 5000))
+    print(f"Запуск сервера на порту {port}...")
+    print(f"В списке {len(JOYS)} радостей.")
+    app.run(host="0.0.0.0", port=port)
