@@ -1,17 +1,18 @@
 import os
 import random
 import logging
+import asyncio
 import threading
 from flask import Flask
 from telegram import Update
 from telegram.ext import Application, CommandHandler
-
+ 
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 if not TOKEN:
     raise ValueError("TELEGRAM_TOKEN не найден")
-
+ 
 logging.basicConfig(level=logging.INFO)
-
+ 
 JOYS = [
     "Разобрать ящик хаоса (любой один).",
     "Помыть одну раковину до идеала.",
@@ -78,35 +79,44 @@ JOYS = [
     "Сделать три глубоких вдоха и выдоха, положив руку на сердце.",
     "Написать себе письмо из будущего (одно предложение).",
 ]
-
-app = Application.builder().token(TOKEN).build()
-
+ 
+telegram_app = Application.builder().token(TOKEN).build()
+ 
 async def start(update: Update, context):
     await update.message.reply_text("Привет! Отправь /random для радости или /list для количества.")
-
+ 
 async def random_joy(update: Update, context):
     await update.message.reply_text(f"✨ {random.choice(JOYS)}")
-
+ 
 async def list_count(update: Update, context):
     await update.message.reply_text(f"📋 В списке {len(JOYS)} радостей.")
-
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("random", random_joy))
-app.add_handler(CommandHandler("list", list_count))
-
-def run_bot():
+ 
+telegram_app.add_handler(CommandHandler("start", start))
+telegram_app.add_handler(CommandHandler("random", random_joy))
+telegram_app.add_handler(CommandHandler("list", list_count))
+ 
+# ── Бот запускается в отдельном потоке БЕЗ signal handlers ──
+async def run_bot_async():
+    await telegram_app.initialize()
+    await telegram_app.updater.start_polling()
+    await telegram_app.start()
     print(f"Бот запущен, радостей: {len(JOYS)}")
-    app.run_polling()
-
+    await asyncio.Event().wait()  # держим живым навсегда
+ 
+def run_bot_thread():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(run_bot_async())
+ 
+# ── Flask для Render healthcheck ────────────────────────────
 flask_app = Flask(__name__)
-
+ 
 @flask_app.route("/")
 def home():
     return "Бот работает"
-
+ 
 if __name__ == "__main__":
-    thread = threading.Thread(target=run_bot)
-    thread.daemon = True
+    thread = threading.Thread(target=run_bot_thread, daemon=True)
     thread.start()
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 10000))
     flask_app.run(host="0.0.0.0", port=port)
